@@ -63,17 +63,19 @@ VALUES
 	(1, 0, 0),
 	(2, 1, 0),
 	(3, 2, 0),
-	(4, 3, 0);
+	(4, 3, 0),
+	(5, 0, 1);
 
 INSERT INTO TextElement
 	(ID, Data, Font, Xloc, Yloc)
 VALUES
-	(0, "OH HI DOGGY", "./resources/pixantiqua.ttf", 400, 400);
+	(0, "OH HI DOGGY", "./resources/pixantiqua.ttf", 140, 20),
+	(1, ":D", "./resources/pixantiqua.ttf", 300, 20);
 
 INSERT INTO PictureElement
 	(ID, Data, Xloc, Yloc, Width, Length)
 VALUES
-	(0, "./pictures/TestPic.png", 100, 100, 100, 100);
+	(0, "./resources/TestPic.png", 100, 100, 400, 100);
 
 INSERT INTO VideoElement
 	(ID, Data, Xloc, Yloc, Width, Length)

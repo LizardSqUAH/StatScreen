@@ -5,10 +5,13 @@ INCLUDE_PATHS += -I/opt/vc/include
 INCLUDE_PATHS += -I/opt/vc/include/interface/vmcs_host/linux
 INCLUDE_PATHS += -I/opt/vc/include/interface/vcos/pthreads
 
-LDLIBS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -lmysqlclient
+LDLIBS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -lmariadbclient
 
-%: %.c
+all:
 	gcc -o stat_screen stat_screen.c $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS)
+
+debug:
+	gcc -o stat_screen stat_screen.c -g $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS)
 
 clean:
 	rm stat_screen

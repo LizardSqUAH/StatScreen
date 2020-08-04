@@ -14,14 +14,193 @@
 //-----------------
 
 //Included for DB
-//#include "mysql.h"
-//#include "my_global.h"
+#include "mariadb/mysql.h"
+//#include "mysql/my_global.h"
 //-----------------
 
-//string readTextFile() {
-//	return "";
-//}
+//Included for string to int
+#include <stdio.h>
+//-----------------
 
+typedef struct TextElementStruct {
+	char* data;
+	char* font;
+	int Xloc;
+	int Yloc;
+	struct TextElementStruct * next;
+} TextElementStruct_t;
+
+typedef struct PictureElementStruct {
+	char* data;
+	int Xloc;
+	int Yloc;
+	int Width;
+	int Length;
+	struct PictureElementStruct * next;
+} PictureElementStruct_t;
+
+typedef struct ImageStruct {
+	Image image;
+	Texture2D texture;
+	int Xloc;
+	int Yloc;
+	int Width;
+	int Length;
+	struct ImageStruct * next;
+} ImageStruct_t;
+
+MYSQL* connectDB() {
+	MYSQL *con = mysql_init(NULL);
+	if (con == NULL) 
+	{
+		return NULL;
+	}
+
+	if (mysql_real_connect(con, "192.168.1.118", "GuiUser", "8smk^_4=y}vpJF7Cwdh", 
+	  "GUIDB", 0, NULL, 0) == NULL) 
+	{
+		return NULL;
+	}
+	return con;
+}
+
+void disconnectDB(MYSQL *con) {
+	mysql_close(con);
+}
+
+TextElementStruct_t* queryTextElements(MYSQL *con) {
+	if(con == NULL) {
+		return NULL;
+	}
+	TextElementStruct_t* head = NULL;//{ 0, 0, 0, 0, NULL };
+
+	if (mysql_query(con, "SELECT * FROM HomeScreen A LEFT OUTER JOIN TextElement B ON A.TypeID = B.ID WHERE A.Type=0")) 
+	{
+		return NULL;
+	}
+	
+	MYSQL_RES *result = mysql_store_result(con);
+	
+	if (result == NULL) 
+	{
+		return NULL;
+	}
+
+	int num_fields = mysql_num_fields(result);
+
+	MYSQL_ROW row;
+	TextElementStruct_t* curr;
+	while ((row = mysql_fetch_row(result))) 
+	{ 
+		if(head == NULL) {
+			//printf("\nHead is null, first item in list\n");
+			curr = (TextElementStruct_t *) malloc(sizeof(TextElementStruct_t));
+			head = curr;
+		}
+		else {
+			//printf("\nHead is not null\n");
+			curr->next = (TextElementStruct_t *) malloc(sizeof(TextElementStruct_t));
+			curr = curr->next;
+		}
+		curr->data = malloc(sizeof(char) * (strlen(row[4]) + 1));
+		strcpy(curr->data, row[4]);
+		curr->font = malloc(sizeof(char) * (strlen(row[5]) + 1));
+		strcpy(curr->font, row[5]);
+		sscanf(row[6], "%i", &(curr->Xloc));
+		sscanf(row[7], "%i", &(curr->Yloc));
+		curr->next = NULL;
+	}
+	
+	mysql_free_result(result);
+	return head;
+}
+
+PictureElementStruct_t* queryPictureElements(MYSQL *con) {
+	if(con == NULL) {
+		return NULL;
+	}
+	PictureElementStruct_t* head = NULL;//{ 0, 0, 0, 0, NULL };
+
+	if (mysql_query(con, "SELECT * FROM HomeScreen A LEFT OUTER JOIN PictureElement B ON A.TypeID = B.ID WHERE A.Type=1")) 
+	{
+		return NULL;
+	}
+	
+	MYSQL_RES *result = mysql_store_result(con);
+	
+	if (result == NULL) 
+	{
+		return NULL;
+	}
+
+	int num_fields = mysql_num_fields(result);
+
+	MYSQL_ROW row;
+	PictureElementStruct_t* curr;
+	while ((row = mysql_fetch_row(result))) 
+	{ 
+		if(head == NULL) {
+			//printf("\nHead is null, first item in list\n");
+			curr = (PictureElementStruct_t *) malloc(sizeof(PictureElementStruct_t));
+			head = curr;
+		}
+		else {
+			//printf("\nHead is not null\n");
+			curr->next = (PictureElementStruct_t *) malloc(sizeof(PictureElementStruct_t));
+			curr = curr->next;
+		}
+		curr->data = malloc(sizeof(char) * (strlen(row[4]) + 1));
+		strcpy(curr->data, row[4]);
+		sscanf(row[5], "%i", &(curr->Xloc));
+		sscanf(row[6], "%i", &(curr->Yloc));
+		sscanf(row[7], "%i", &(curr->Width));
+		sscanf(row[8], "%i", &(curr->Length));
+		curr->next = NULL;
+	}
+	
+	mysql_free_result(result);
+	return head;
+}
+
+ImageStruct_t* setupImageStruct(PictureElementStruct_t* pictElemsHead) {
+	if(pictElemsHead == NULL) {
+		return NULL;
+	}
+	ImageStruct_t* head = NULL;
+	ImageStruct_t* curr;
+	while(pictElemsHead != NULL) {
+		if(head == NULL) {
+			curr = (ImageStruct_t *) malloc(sizeof(ImageStruct_t));
+			head = curr;
+		}
+		else {
+			curr->next = (ImageStruct_t *) malloc(sizeof(ImageStruct_t));
+			curr = curr->next;
+		}
+		curr->image = LoadImage("resources/TestPic.png");
+		ImageFormat(&(curr->image), UNCOMPRESSED_R8G8B8A8);
+		curr->texture = LoadTextureFromImage(curr->image);
+		curr->Xloc = pictElemsHead->Xloc;
+		curr->Yloc = pictElemsHead->Yloc;
+		curr->Width = pictElemsHead->Width;
+		curr->Length = pictElemsHead->Length;
+		curr->next = NULL;
+		pictElemsHead = pictElemsHead->next;
+	}
+	return head;
+}
+
+void cleanImageStruct(ImageStruct_t* toClean) {
+	ImageStruct_t* curr = toClean;
+	ImageStruct_t* next;
+	while(curr != NULL) {
+		UnloadTexture(curr->texture);
+		UnloadImage(curr->image);
+		next = curr->next;
+		free(curr);
+		curr = next;
+	}
+}
 
 int drawClock(struct tm *tm, float vcc, float hcc, float radius) {
 	float hclocks = radius * sin((tm->tm_sec / 60.0) * 2.0 * 3.14159265);
@@ -30,9 +209,6 @@ int drawClock(struct tm *tm, float vcc, float hcc, float radius) {
 	float vclockm = radius * cos((tm->tm_min / 60.0) * 2.0 * 3.14159265);
 	float hclockh = radius * sin((tm->tm_hour / 12.0) * 2.0 * 3.14159265);
 	float vclockh = radius * cos((tm->tm_hour / 12.0) * 2.0 * 3.14159265);
-	/*printf ("%04d-%02d-%02d %02d:%02d:%02d\nhclocks: %f\tvclocks: %f\n",
-	 tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-	 tm->tm_hour, tm->tm_min, tm->tm_sec, hclocks, vclocks);*/
 	int hourNum = 0;
 	for(int i = 0; i < 60; i++) {
 		if(i%15 == 0) {
@@ -80,78 +256,80 @@ int drawClock(struct tm *tm, float vcc, float hcc, float radius) {
 
 int main(void)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    long sqlversion = mysql_get_client_version();
-    printf("Version %ld \n", sqlversion);
-    
-    const int screenWidth = 800;
-    const int screenHeight = 450;
-    struct tm *tm;
-    int vclockcenter = 100;
-    int hclockcenter = 700;
+	// Initialization
+	//--------------------------------------------------------------------------------------
+	
+	const int screenWidth = 1920;
+	const int screenHeight = 1080;
+	struct tm *tm;
+	int vclockcenter = 100;
+	int hclockcenter = 700;
 
-    InitWindow(screenWidth, screenHeight, "raylib [text] example - bmfont and ttf sprite fonts loading");
+	InitWindow(screenWidth, screenHeight, "raylib [text] example - bmfont and ttf sprite fonts loading");
+	
+	long sqlversion = mysql_get_client_version();
+	printf("Version %ld \n", sqlversion);
+	MYSQL *con = connectDB();
+  
+	TextElementStruct_t *headText = queryTextElements(con);
+	PictureElementStruct_t *headPicture = queryPictureElements(con);
+	struct ImageStruct *headImage = setupImageStruct(headPicture);
+	struct ImageStruct *currImage = headImage;
+	
+	bool updateScreen = false;
+	
+	disconnectDB(con);
 
-    // time_t is arithmetic time type
-    time_t now;
-    time_t oldFileTime;
+	time_t now;
+	time_t oldFileTime;
 
-    // Obtain current time
-    // time() returns the current time of the system as a time_t value
-    time(&now);
+	time(&now);
 
-    // Convert to local time format and print to stdout
-    printf("Today is : %s", ctime(&now));
-    char* msg = ctime(&now);
+	printf("Today is : %s", ctime(&now));
+	char* msg = ctime(&now);
 
-    // NOTE: Textures/Fonts MUST be loaded after Window initialization (OpenGL context is required)
-    // BMFont (AngelCode) : Font data and image atlas have been generated using external program
-    Font fontBm = LoadFont("resources/pixantiqua.fnt");
+	Font fontBm = LoadFont("resources/pixantiqua.fnt");
 
-    // TTF font : Font data and atlas are generated directly from TTF
-    // NOTE: We define a font base size of 32 pixels tall and up-to 250 characters
-    Font fontTtf = LoadFontEx("resources/pixantiqua.ttf", 32, 0, 250);
+	Font fontTtf = LoadFontEx("resources/pixantiqua.ttf", 32, 0, 250);
 
-    bool useTtf = false;
-    
-    char* displayTextFilePath = "DisplayText.txt";
-    char* displayTextContent = LoadText(displayTextFilePath);
+	bool useTtf = false;
+	
+	char* displayTextFilePath = "DisplayText.txt";
+	char* displayTextContent = LoadText(displayTextFilePath);
 
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
+	SetTargetFPS(60);			   // Set our game to run at 60 frames-per-second
+	//--------------------------------------------------------------------------------------
+	// Main game loop
+	while (!WindowShouldClose())	// Detect window close button or ESC key
+	{
+		// Update
+		//----------------------------------------------------------------------------------
+		if (IsKeyDown(KEY_SPACE)) useTtf = true;
+		else useTtf = false;
+		//----------------------------------------------------------------------------------
+		time(&now);
 
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
-    {
-        // Update
-        //----------------------------------------------------------------------------------
-        if (IsKeyDown(KEY_SPACE)) useTtf = true;
-        else useTtf = false;
-        //----------------------------------------------------------------------------------
-        time(&now);
+		if ((tm = localtime (&now)) == NULL) {
+			printf ("Error extracting time stuff\n");
+			return 1;
+		}
 
-	if ((tm = localtime (&now)) == NULL) {
-	     printf ("Error extracting time stuff\n");
-	     return 1;
-	}
-
-        strcpy(msg, ctime(&now));
-        char* toover = "The current date/time is:\n";
-        int strlento = strlen(toover);
-        int strlenmsg = strlen(msg);
-        char textClock[strlento+strlenmsg];
-        for(int i = 0; i < strlento; i++) {
-                textClock[i] = toover[i];
-        }
-        textClock[strlento] = '\0';
-        for(int i = 0; i < strlenmsg; i++) {
-                textClock[i+strlento] = msg[i];
-        }
-        textClock[strlenmsg+strlento] = '\0';
-        // Draw
-        //----------------------------------------------------------------------------------
-        BeginDrawing();
+		strcpy(msg, ctime(&now));
+		char* toover = "The current date/time is:\n";
+		int strlento = strlen(toover);
+		int strlenmsg = strlen(msg);
+		char textClock[strlento+strlenmsg];
+		for(int i = 0; i < strlento; i++) {
+				textClock[i] = toover[i];
+		}
+		textClock[strlento] = '\0';
+		for(int i = 0; i < strlenmsg; i++) {
+				textClock[i+strlento] = msg[i];
+		}
+		textClock[strlenmsg+strlento] = '\0';
+		// Draw
+		//----------------------------------------------------------------------------------
+		BeginDrawing();
 
 		ClearBackground(RAYWHITE);
 		
@@ -164,9 +342,41 @@ int main(void)
 		if(file_stat.st_mtime > oldFileTime) {
 			displayTextContent = LoadText(displayTextFilePath);
 			printf("\nDisplayText is now up to date\n");
-        		time(&oldFileTime);
+				time(&oldFileTime);
 		}
 		DrawText(displayTextContent, 20, 20, 20, LIGHTGRAY);
+		
+		//----------- Database Updates
+		if(tm->tm_sec%5 == 0) {
+			if(updateScreen) {
+				MYSQL *con = connectDB();
+				headText = queryTextElements(con);
+				headPicture = queryPictureElements(con);
+				disconnectDB(con);
+				
+				cleanImageStruct(headImage);
+				headImage = NULL;
+				headImage = setupImageStruct(headPicture);
+				updateScreen = false;
+			}
+		}
+		else {
+			updateScreen = true;
+		}
+		//-----------
+		
+		//----------- Loading Structs
+		TextElementStruct_t *currText = headText;
+		while(currText != NULL) {
+			DrawText(currText->data, currText->Xloc, currText->Yloc, 20, BLUE);
+			currText = currText->next;
+		}
+		currImage = headImage;
+		while(currImage != NULL) {
+			DrawTexture(currImage->texture, currImage->Xloc, currImage->Yloc, WHITE);
+			currImage = currImage->next;
+		}
+		//-----------
 
 		if (!useTtf)
 		{
@@ -180,17 +390,17 @@ int main(void)
 		}
 		
 		drawClock(tm, vclockcenter, hclockcenter, 60.0);
-        EndDrawing();
-        //----------------------------------------------------------------------------------
-    }
+		EndDrawing();
+		//----------------------------------------------------------------------------------
+	}
 
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    UnloadFont(fontBm);     // AngelCode Font unloading
-    UnloadFont(fontTtf);    // TTF Font unloading
+	// De-Initialization
+	//--------------------------------------------------------------------------------------
+	UnloadFont(fontBm);	 // AngelCode Font unloading
+	UnloadFont(fontTtf);	// TTF Font unloading
 
-    CloseWindow();                // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+	CloseWindow();				// Close window and OpenGL context
+	//--------------------------------------------------------------------------------------
 
-    return 0;
+	return 0;
 }
