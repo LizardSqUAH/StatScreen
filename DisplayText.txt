@@ -1,1 +1,1 @@
-I am silly
+This is the display text

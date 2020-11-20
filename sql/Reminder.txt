@@ -1,1 +1,1 @@
-source file.sql in cmd for db
+In order to run a sql file, run "source file.sql" in the mariadb (or mysql) database.

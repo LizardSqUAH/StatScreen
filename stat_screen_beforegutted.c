@@ -23,13 +23,31 @@
 //-----------------
 
 typedef struct TextElementStruct {
-	int id;
-	char[10][30] data;
-	char* postdate;
+	char* data;
+	char* font;
 	int Xloc;
 	int Yloc;
 	struct TextElementStruct * next;
 } TextElementStruct_t;
+
+typedef struct PictureElementStruct {
+	char* data;
+	int Xloc;
+	int Yloc;
+	int Width;
+	int Length;
+	struct PictureElementStruct * next;
+} PictureElementStruct_t;
+
+typedef struct ImageStruct {
+	Image image;
+	Texture2D texture;
+	int Xloc;
+	int Yloc;
+	int Width;
+	int Length;
+	struct ImageStruct * next;
+} ImageStruct_t;
 
 MYSQL* connectDB() {
 	MYSQL *con = mysql_init(NULL);
