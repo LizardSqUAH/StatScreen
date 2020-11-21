@@ -24,7 +24,7 @@
 
 typedef struct TextElementStruct {
 	int id;
-	char[10][30] data;
+	char* data;
 	char* postdate;
 	int Xloc;
 	int Yloc;
@@ -35,12 +35,15 @@ MYSQL* connectDB() {
 	MYSQL *con = mysql_init(NULL);
 	if (con == NULL) 
 	{
+		printf("MYSQL* connectDB()\n");
+		printf("con == NULL\n");
 		return NULL;
 	}
 
-	if (mysql_real_connect(con, "192.168.1.118", "GuiUser", "8smk^_4=y}vpJF7Cwdh", 
-	  "GUIDB", 0, NULL, 0) == NULL) 
+	if (mysql_real_connect(con, "192.168.1.117", "GuiUser", "8smk^_4=y}vpJF7Cwdh", 
+	  "TextGuiDB", 3306, NULL, 0) == NULL) 
 	{
+		fprintf(stderr, "Failed to connect to database: Error: %s\n", mysql_error(con));
 		return NULL;
 	}
 	return con;
@@ -52,12 +55,16 @@ void disconnectDB(MYSQL *con) {
 
 TextElementStruct_t* queryTextElements(MYSQL *con) {
 	if(con == NULL) {
+		printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
+		printf("con == NULL\n");
 		return NULL;
 	}
 	TextElementStruct_t* head = NULL;//{ 0, 0, 0, 0, NULL };
 
-	if (mysql_query(con, "SELECT * FROM HomeScreen A LEFT OUTER JOIN TextElement B ON A.TypeID = B.ID WHERE A.Type=0")) 
+	if (mysql_query(con, "SELECT * FROM TestDisplay ORDER BY PostDate DESC")) 
 	{
+		printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
+		printf("mysql_query(con, \"SELECT * FROM TestDisplay\")\n");
 		return NULL;
 	}
 	
@@ -65,6 +72,8 @@ TextElementStruct_t* queryTextElements(MYSQL *con) {
 	
 	if (result == NULL) 
 	{
+		printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
+		printf("result == NULL\n");
 		return NULL;
 	}
 
@@ -72,115 +81,87 @@ TextElementStruct_t* queryTextElements(MYSQL *con) {
 
 	MYSQL_ROW row;
 	TextElementStruct_t* curr;
+	int count = 0;
 	while ((row = mysql_fetch_row(result))) 
 	{ 
+		//printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
+		//printf("row %i\n", count);
 		if(head == NULL) {
-			//printf("\nHead is null, first item in list\n");
 			curr = (TextElementStruct_t *) malloc(sizeof(TextElementStruct_t));
 			head = curr;
 		}
 		else {
-			//printf("\nHead is not null\n");
 			curr->next = (TextElementStruct_t *) malloc(sizeof(TextElementStruct_t));
 			curr = curr->next;
 		}
-		curr->data = malloc(sizeof(char) * (strlen(row[4]) + 1));
-		strcpy(curr->data, row[4]);
-		curr->font = malloc(sizeof(char) * (strlen(row[5]) + 1));
-		strcpy(curr->font, row[5]);
-		sscanf(row[6], "%i", &(curr->Xloc));
-		sscanf(row[7], "%i", &(curr->Yloc));
+		//printf("ID: %s\tData: %s\tPostDate: %s\n", row[0], row[1], row[2]);
+		curr->data = malloc(sizeof(char) * (strlen(row[1]) + 1));
+		strcpy(curr->data, row[1]);
+		curr->postdate = malloc(sizeof(char) * (strlen(row[2]) + 1));
+		strcpy(curr->postdate, row[2]);
 		curr->next = NULL;
+		count++;
 	}
 	
 	mysql_free_result(result);
 	return head;
 }
 
-PictureElementStruct_t* queryPictureElements(MYSQL *con) {
-	if(con == NULL) {
-		return NULL;
-	}
-	PictureElementStruct_t* head = NULL;//{ 0, 0, 0, 0, NULL };
+void drawTextBox(struct TextElementStruct_t* headText, char* boxTitle, int xBox, int yBox) {
+	int fontSize = 20;
+	int fontLen = 15;
+	int maxString = 66;
 
-	if (mysql_query(con, "SELECT * FROM HomeScreen A LEFT OUTER JOIN PictureElement B ON A.TypeID = B.ID WHERE A.Type=1")) 
-	{
-		return NULL;
-	}
+	//int heightSpacing = fontSize * 2;
+	int heightSpacing = 500;
+	int widthSpacing = 960;
+	TextElementStruct_t *currText = headText;
+	/*while(currText != NULL) {
+		//int curLineSize = strlen(currText->data) * fontLen;
+		//if(curLineSize > widthSpacing) {
+		//	widthSpacing = curLineSize;
+		//}
+		heightSpacing += fontSize;
+		currText = currText->next;
+	}*/
+
+	Rectangle border;
+	border.x = xBox;
+	border.y = yBox;
+	border.width = widthSpacing;//500;
+	border.height = heightSpacing;//300;
+	DrawRectangleLinesEx(border, 6, GRAY);
 	
-	MYSQL_RES *result = mysql_store_result(con);
+	currText = headText;
+	int XlocO = xBox + 20; // + 20 to avoid the Rectangle
+	int YlocO = yBox + 20; // + 20 to avoid the Rectangle
 	
-	if (result == NULL) 
-	{
-		return NULL;
-	}
-
-	int num_fields = mysql_num_fields(result);
-
-	MYSQL_ROW row;
-	PictureElementStruct_t* curr;
-	while ((row = mysql_fetch_row(result))) 
-	{ 
-		if(head == NULL) {
-			//printf("\nHead is null, first item in list\n");
-			curr = (PictureElementStruct_t *) malloc(sizeof(PictureElementStruct_t));
-			head = curr;
+	DrawText(boxTitle, XlocO, YlocO, fontSize, RED);
+	YlocO += 440;
+	// count = 10
+	// Print title of box
+	int count = 0;
+	char buffString[maxString + 1];
+	buffString[maxString] = '\x00';
+	while(count < 22 && currText != NULL) {
+		int dataLen = strlen(currText->data);
+		int numLines = dataLen/maxString;
+		for(int i = 0; i < numLines+1 && count < 22; i++) {
+			if(i == 0) {
+				int lastStringLen = dataLen % maxString;
+				strncpy( buffString, (currText->data) + (numLines * maxString), lastStringLen);
+				for(int j = lastStringLen; j < maxString; j++) {
+					buffString[j] = '\x00';
+				}
+			}
+			else {
+				strncpy(buffString, (currText->data) + ((numLines-i) * maxString), maxString);
+			}
+			DrawText(buffString, XlocO, YlocO, fontSize, BLUE);
+			YlocO -= 20;
+			count++;
 		}
-		else {
-			//printf("\nHead is not null\n");
-			curr->next = (PictureElementStruct_t *) malloc(sizeof(PictureElementStruct_t));
-			curr = curr->next;
-		}
-		curr->data = malloc(sizeof(char) * (strlen(row[4]) + 1));
-		strcpy(curr->data, row[4]);
-		sscanf(row[5], "%i", &(curr->Xloc));
-		sscanf(row[6], "%i", &(curr->Yloc));
-		sscanf(row[7], "%i", &(curr->Width));
-		sscanf(row[8], "%i", &(curr->Length));
-		curr->next = NULL;
-	}
-	
-	mysql_free_result(result);
-	return head;
-}
-
-ImageStruct_t* setupImageStruct(PictureElementStruct_t* pictElemsHead) {
-	if(pictElemsHead == NULL) {
-		return NULL;
-	}
-	ImageStruct_t* head = NULL;
-	ImageStruct_t* curr;
-	while(pictElemsHead != NULL) {
-		if(head == NULL) {
-			curr = (ImageStruct_t *) malloc(sizeof(ImageStruct_t));
-			head = curr;
-		}
-		else {
-			curr->next = (ImageStruct_t *) malloc(sizeof(ImageStruct_t));
-			curr = curr->next;
-		}
-		curr->image = LoadImage("resources/TestPic.png");
-		ImageFormat(&(curr->image), UNCOMPRESSED_R8G8B8A8);
-		curr->texture = LoadTextureFromImage(curr->image);
-		curr->Xloc = pictElemsHead->Xloc;
-		curr->Yloc = pictElemsHead->Yloc;
-		curr->Width = pictElemsHead->Width;
-		curr->Length = pictElemsHead->Length;
-		curr->next = NULL;
-		pictElemsHead = pictElemsHead->next;
-	}
-	return head;
-}
-
-void cleanImageStruct(ImageStruct_t* toClean) {
-	ImageStruct_t* curr = toClean;
-	ImageStruct_t* next;
-	while(curr != NULL) {
-		UnloadTexture(curr->texture);
-		UnloadImage(curr->image);
-		next = curr->next;
-		free(curr);
-		curr = next;
+		currText = currText->next;
 	}
 }
 
@@ -254,9 +235,6 @@ int main(void)
 	MYSQL *con = connectDB();
   
 	TextElementStruct_t *headText = queryTextElements(con);
-	PictureElementStruct_t *headPicture = queryPictureElements(con);
-	struct ImageStruct *headImage = setupImageStruct(headPicture);
-	struct ImageStruct *currImage = headImage;
 	
 	bool updateScreen = false;
 	
@@ -273,8 +251,6 @@ int main(void)
 	Font fontBm = LoadFont("resources/pixantiqua.fnt");
 
 	Font fontTtf = LoadFontEx("resources/pixantiqua.ttf", 32, 0, 250);
-
-	bool useTtf = false;
 	
 	char* displayTextFilePath = "DisplayText.txt";
 	char* displayTextContent = LoadText(displayTextFilePath);
@@ -286,8 +262,7 @@ int main(void)
 	{
 		// Update
 		//----------------------------------------------------------------------------------
-		if (IsKeyDown(KEY_SPACE)) useTtf = true;
-		else useTtf = false;
+		
 		//----------------------------------------------------------------------------------
 		time(&now);
 
@@ -313,7 +288,7 @@ int main(void)
 		//----------------------------------------------------------------------------------
 		BeginDrawing();
 
-		ClearBackground(RAYWHITE);
+		ClearBackground(BLACK);
 		
 		struct stat file_stat;
 		int err = stat(displayTextFilePath, &file_stat);
@@ -324,21 +299,17 @@ int main(void)
 		if(file_stat.st_mtime > oldFileTime) {
 			displayTextContent = LoadText(displayTextFilePath);
 			printf("\nDisplayText is now up to date\n");
-				time(&oldFileTime);
+			time(&oldFileTime);
 		}
-		DrawText(displayTextContent, 20, 20, 20, LIGHTGRAY);
+		DrawText(displayTextContent, 20, 20, 40, LIGHTGRAY);
 		
 		//----------- Database Updates
 		if(tm->tm_sec%5 == 0) {
 			if(updateScreen) {
 				MYSQL *con = connectDB();
 				headText = queryTextElements(con);
-				headPicture = queryPictureElements(con);
 				disconnectDB(con);
 				
-				cleanImageStruct(headImage);
-				headImage = NULL;
-				headImage = setupImageStruct(headPicture);
 				updateScreen = false;
 			}
 		}
@@ -348,30 +319,17 @@ int main(void)
 		//-----------
 		
 		//----------- Loading Structs
-		TextElementStruct_t *currText = headText;
-		while(currText != NULL) {
-			DrawText(currText->data, currText->Xloc, currText->Yloc, 20, BLUE);
-			currText = currText->next;
-		}
-		currImage = headImage;
-		while(currImage != NULL) {
-			DrawTexture(currImage->texture, currImage->Xloc, currImage->Yloc, WHITE);
-			currImage = currImage->next;
-		}
+		drawTextBox(headText, "Box 1", 0, 80);
+		//drawTextBox(headText, "Box 2", 480, 80);
+		drawTextBox(headText, "Box 3", 960, 80);
+		//drawTextBox(headText, "Box 4", 1440, 80);
+		drawTextBox(headText, "Box 5", 0, 580);
+		//drawTextBox(headText, "Box 6", 480, 580);
+		drawTextBox(headText, "Box 7", 960, 580);
+		//drawTextBox(headText, "Box 8", 1440, 580);
 		//-----------
 
-		if (!useTtf)
-		{
-			DrawTextEx(fontBm, textClock, (Vector2){ 20.0f, 100.0f }, fontBm.baseSize, 2, MAROON);
-			DrawText("Using BMFont (Angelcode) imported", 20, GetScreenHeight() - 30, 20, GRAY);
-		}
-		else
-		{
-			DrawTextEx(fontTtf, textClock, (Vector2){ 20.0f, 100.0f }, fontTtf.baseSize, 2, LIME);
-			DrawText("Using TTF font generated", 20, GetScreenHeight() - 30, 20, GRAY);
-		}
-		
-		drawClock(tm, vclockcenter, hclockcenter, 60.0);
+		//drawClock(tm, vclockcenter, hclockcenter, 60.0);
 		EndDrawing();
 		//----------------------------------------------------------------------------------
 	}
