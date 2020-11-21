@@ -22,8 +22,10 @@
 #include <stdio.h>
 //-----------------
 
+#define maxBoxStringSize 180
+
 typedef struct ReverseString {
-	char string[180 + 1];
+	char* string;
 	struct ReverseString * prev;
 } ReverseString_t;
 
@@ -116,7 +118,6 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 	int fontSize = 20;
 	int fontSpacing = 0;
 	int fontLen = 15;
-	int maxString = 180;
 
 	//int heightSpacing = fontSize * 2;
 	int heightSpacing = 500;
@@ -147,52 +148,60 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 	// count = 10
 	// Print title of box
 	int count = 0;
-	char buffString[maxString + 1];
-	buffString[maxString] = '\x00';
 	
 	
 	ReverseString_t* revString = (ReverseString_t *) malloc(sizeof(ReverseString_t));
 	revString->prev = NULL;
-	int overflowIndex = 0;
+	
+	int currTextIndex = 0;
 	while(count < 22 && currText != NULL) {
-		int index = 0;
-		while(overflowIndex < strlen(currText->data) && index < maxString) {
-			buffString[index] = currText->data[overflowIndex];
-			buffString[index+1] = '\x00';
+		int buffIndex = 0;
+		char buffString[maxBoxStringSize + 1];
+		buffString[maxBoxStringSize] = '\x00';
+		
+		int currTextLen = strlen(currText->data);
+		
+		while(currTextIndex < currTextLen && buffIndex < maxBoxStringSize) {
+			buffString[buffIndex] = currText->data[currTextIndex];
+			buffString[buffIndex+1] = '\x00';
 			Vector2 textSize = MeasureTextEx(font, buffString, fontSize, fontSpacing);
-			printf("%s\tx = %f\ty = %f\n", buffString, textSize.x, textSize.y);
 			if(textSize.x > widthSpacing-20) {
-				buffString[index] = '\x00';
+				buffString[buffIndex] = '\x00';
 				break;
 			}
-			index++;
-			overflowIndex++;
+			buffIndex++;
+			currTextIndex++;
 		}
+		revString->string = malloc(sizeof(char) * (strlen(buffString) + 1));
 		for(int i = 0; i < strlen(buffString); i++) {
-			printf("%d\n", i);
+			
 			revString->string[i] = buffString[i];
 		}
 		revString->string[strlen(buffString)] = '\x00';
-		
 		ReverseString_t* tempRev = (ReverseString_t *) malloc(sizeof(ReverseString_t));
 		tempRev->prev = revString;
 		revString = tempRev;
 		
-		if(overflowIndex >= strlen(currText->data)) {
+		if(currTextIndex >= strlen(currText->data)) {
+			//The string is null, so skip the first one
+			revString = revString->prev;
 			while(revString != NULL && count < 22) {
-				Rectangle wordLimit;
-				wordLimit.x = XlocO;
-				wordLimit.y = YlocO;
-				wordLimit.width = border.width;
-				wordLimit.height = 200;
-				DrawTextRec(font, revString->string, wordLimit, fontSize, 0.0, true, BLUE);
-
+				if(revString->string[0] != '\0') {
+					Rectangle wordLimit;
+					wordLimit.x = XlocO;
+					wordLimit.y = YlocO;
+					wordLimit.width = border.width;
+					wordLimit.height = 200;
+					DrawTextRec(font, revString->string, wordLimit, fontSize, 0.0, true, BLUE);
+				}
 				YlocO -= 20;
 				count++;
+				ReverseString_t* tempDel = revString;
 				revString = revString->prev;
+				free(tempDel);
 			}
 			currText = currText->next;
-			overflowIndex = 0;
+			currTextIndex = 0;
 			revString = (ReverseString_t *) malloc(sizeof(ReverseString_t));
 			revString->prev = NULL;
 		}
@@ -355,11 +364,11 @@ int main(void)
 		//----------- Loading Structs
 		drawTextBox(fontBm, headText, "Box 1", 0, 80);
 		//drawTextBox(headText, "Box 2", 480, 80);
-		drawTextBox(fontBm, headText, "Box 3", 960, 80);
+		drawTextBox(fontBm, headText, "Box 2", 960, 80);
 		//drawTextBox(headText, "Box 4", 1440, 80);
-		drawTextBox(fontBm, headText, "Box 5", 0, 580);
+		drawTextBox(fontBm, headText, "Box 3", 0, 580);
 		//drawTextBox(headText, "Box 6", 480, 580);
-		drawTextBox(fontBm, headText, "Box 7", 960, 580);
+		drawTextBox(fontBm, headText, "Box 4", 960, 580);
 		//drawTextBox(headText, "Box 8", 1440, 580);
 		//-----------
 
