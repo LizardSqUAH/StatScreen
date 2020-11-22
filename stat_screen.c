@@ -60,18 +60,38 @@ void disconnectDB(MYSQL *con) {
 	mysql_close(con);
 }
 
-TextElementStruct_t* queryTextElements(MYSQL *con) {
+TextElementStruct_t* queryTextElements(MYSQL *con, char* tableName) {
 	if(con == NULL) {
 		printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
 		printf("con == NULL\n");
 		return NULL;
 	}
-	TextElementStruct_t* head = NULL;//{ 0, 0, 0, 0, NULL };
+	TextElementStruct_t* head = NULL;
+	
+	char* firstHalf = "SELECT * FROM ";
+	char* lastHalf = " ORDER BY PostDate DESC";
+	
+	int firstHalfLen = strlen(firstHalf);
+	int tableNameLen = strlen(tableName);
+	int lastHalfLen = strlen(lastHalf);
+	
+	char* queryString = malloc(sizeof(char) * (firstHalfLen + tableNameLen + lastHalfLen + 1));
+	
+	for(int i = 0; i < firstHalfLen; i++) {
+		queryString[i] = firstHalf[i];
+	}
+	for(int i = firstHalfLen, j = 0; j < tableNameLen; i++, j++) {
+		queryString[i] = tableName[j];
+	}
+	for(int i = tableNameLen + firstHalfLen, j = 0; j < lastHalfLen; i++, j++) {
+		queryString[i] = lastHalf[j];
+	}
+	queryString[firstHalfLen + tableNameLen + lastHalfLen] = '\0';
 
-	if (mysql_query(con, "SELECT * FROM TestDisplay ORDER BY PostDate DESC")) 
+	if (mysql_query(con, queryString)) 
 	{
 		printf("TextElementStruct_t* queryTextElements(MYSQL *con)\n");
-		printf("mysql_query(con, \"SELECT * FROM TestDisplay\")\n");
+		printf("mysql_query(con, \"%s\")\n", queryString);
 		return NULL;
 	}
 	
@@ -102,10 +122,10 @@ TextElementStruct_t* queryTextElements(MYSQL *con) {
 			curr = curr->next;
 		}
 		//printf("ID: %s\tData: %s\tPostDate: %s\n", row[0], row[1], row[2]);
-		curr->data = malloc(sizeof(char) * (strlen(row[1]) + 1));
-		strcpy(curr->data, row[1]);
-		curr->postdate = malloc(sizeof(char) * (strlen(row[2]) + 1));
-		strcpy(curr->postdate, row[2]);
+		curr->data = malloc(sizeof(char) * (strlen(row[0]) + 1));
+		strcpy(curr->data, row[0]);
+		curr->postdate = malloc(sizeof(char) * (strlen(row[1]) + 1));
+		strcpy(curr->postdate, row[1]);
 		curr->next = NULL;
 		count++;
 	}
@@ -119,18 +139,9 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 	int fontSpacing = 0;
 	int fontLen = 15;
 
-	//int heightSpacing = fontSize * 2;
 	int heightSpacing = 500;
 	int widthSpacing = 960;
 	TextElementStruct_t *currText = headText;
-	/*while(currText != NULL) {
-		//int curLineSize = strlen(currText->data) * fontLen;
-		//if(curLineSize > widthSpacing) {
-		//	widthSpacing = curLineSize;
-		//}
-		heightSpacing += fontSize;
-		currText = currText->next;
-	}*/
 
 	Rectangle border;
 	border.x = xBox;
@@ -138,21 +149,20 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 	border.width = widthSpacing;//500;
 	border.height = heightSpacing;//300;
 	DrawRectangleLinesEx(border, 6, GRAY);
-	
+
 	currText = headText;
 	int XlocO = xBox + 20; // + 20 to avoid the Rectangle
 	int YlocO = yBox + 20; // + 20 to avoid the Rectangle
-	
+
 	DrawText(boxTitle, XlocO, YlocO, fontSize, RED);
 	YlocO += 440;
 	// count = 10
 	// Print title of box
 	int count = 0;
-	
-	
+
 	ReverseString_t* revString = (ReverseString_t *) malloc(sizeof(ReverseString_t));
 	revString->prev = NULL;
-	
+
 	int currTextIndex = 0;
 	while(count < 22 && currText != NULL) {
 		int buffIndex = 0;
@@ -277,7 +287,14 @@ int main(void)
 	printf("Version %ld \n", sqlversion);
 	MYSQL *con = connectDB();
   
-	TextElementStruct_t *headText = queryTextElements(con);
+  	char* box1Table = "MessageDisplay";
+  	char* box2Table = "MessageDisplay1";
+  	char* box3Table = "MessageDisplay2";
+  	char* box4Table = "UpdateDisplay1";
+	TextElementStruct_t *box1Text = queryTextElements(con, box1Table);
+	TextElementStruct_t *box2Text = queryTextElements(con, box2Table);
+	TextElementStruct_t *box3Text = queryTextElements(con, box3Table);
+	TextElementStruct_t *box4Text = queryTextElements(con, box4Table);
 	
 	bool updateScreen = false;
 	
@@ -349,8 +366,11 @@ int main(void)
 		//----------- Database Updates
 		if(tm->tm_sec%5 == 0) {
 			if(updateScreen) {
-				MYSQL *con = connectDB();
-				headText = queryTextElements(con);
+				MYSQL *con = connectDB();	
+				box1Text = queryTextElements(con, box1Table);
+				box2Text = queryTextElements(con, box2Table);
+				box3Text = queryTextElements(con, box3Table);
+				box4Text = queryTextElements(con, box4Table);
 				disconnectDB(con);
 				
 				updateScreen = false;
@@ -362,14 +382,10 @@ int main(void)
 		//-----------
 		
 		//----------- Loading Structs
-		drawTextBox(fontBm, headText, "Box 1", 0, 80);
-		//drawTextBox(headText, "Box 2", 480, 80);
-		drawTextBox(fontBm, headText, "Box 2", 960, 80);
-		//drawTextBox(headText, "Box 4", 1440, 80);
-		drawTextBox(fontBm, headText, "Box 3", 0, 580);
-		//drawTextBox(headText, "Box 6", 480, 580);
-		drawTextBox(fontBm, headText, "Box 4", 960, 580);
-		//drawTextBox(headText, "Box 8", 1440, 580);
+		drawTextBox(fontBm, box1Text, box1Table, 0, 80);
+		drawTextBox(fontBm, box2Text, box2Table, 960, 80);
+		drawTextBox(fontBm, box3Text, box3Table, 0, 580);
+		drawTextBox(fontBm, box4Text, box4Table, 960, 580);
 		//-----------
 
 		//drawClock(tm, vclockcenter, hclockcenter, 60.0);
