@@ -39,10 +39,10 @@ typedef struct ReverseString {
 
 typedef struct TextElementStruct {
 	int id;
+	char* title;
 	char* data;
 	char* postdate;
-	int Xloc;
-	int Yloc;
+	char* allInfo;
 	struct TextElementStruct * next;
 } TextElementStruct_t;
 
@@ -168,10 +168,23 @@ TextElementStruct_t* queryTextElements(MYSQL *con, char* tableName) {
 			curr = curr->next;
 		}
 		//printf("ID: %s\tData: %s\tPostDate: %s\n", row[0], row[1], row[2]);
-		curr->data = malloc(sizeof(char) * (strlen(row[0]) + 1));
-		strcpy(curr->data, row[0]);
-		curr->postdate = malloc(sizeof(char) * (strlen(row[1]) + 1));
-		strcpy(curr->postdate, row[1]);
+		sscanf(row[0], "%u", &(curr->id));
+		curr->title = malloc(sizeof(char) * (strlen(row[1]) + 1));
+		strcpy(curr->title, row[1]);
+		curr->data = malloc(sizeof(char) * (strlen(row[2]) + 1));
+		strcpy(curr->data, row[2]);
+		curr->postdate = malloc(sizeof(char) * (strlen(row[3]) + 1));
+		strcpy(curr->postdate, row[3]);
+		
+		curr->allInfo = malloc(sizeof(char) * (strlen(curr->title) + strlen(curr->data) + strlen(curr->postdate) + 5));
+		snprintf(curr->allInfo, 
+			strlen(curr->title) + strlen(curr->data) + strlen(curr->postdate) + 5, 
+			"%s\t%s - %s",
+			curr->postdate,
+			curr->title,
+			curr->data);
+		printf("%s\n", curr->data);
+		printf("%s\n", curr->allInfo);
 		curr->next = NULL;
 		count++;
 	}
@@ -196,7 +209,6 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 	border.height = heightSpacing;//300;
 	DrawRectangleLinesEx(border, 6, GRAY);
 
-	currText = headText;
 	int XlocO = xBox + 20; // + 20 to avoid the Rectangle
 	int YlocO = yBox + 20; // + 20 to avoid the Rectangle
 
@@ -215,10 +227,10 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 		char buffString[maxBoxStringSize + 1];
 		buffString[maxBoxStringSize] = '\x00';
 		
-		int currTextLen = strlen(currText->data);
+		int currTextLen = strlen(currText->allInfo);
 		
 		while(currTextIndex < currTextLen && buffIndex < maxBoxStringSize) {
-			buffString[buffIndex] = currText->data[currTextIndex];
+			buffString[buffIndex] = currText->allInfo[currTextIndex];
 			buffString[buffIndex+1] = '\x00';
 			Vector2 textSize = MeasureTextEx(font, buffString, fontSize, fontSpacing);
 			if(textSize.x > widthSpacing-20) {
@@ -238,7 +250,7 @@ void drawTextBox(Font font, struct TextElementStruct_t* headText, char* boxTitle
 		tempRev->prev = revString;
 		revString = tempRev;
 		
-		if(currTextIndex >= strlen(currText->data)) {
+		if(currTextIndex >= strlen(currText->allInfo)) {
 			//The string is null, so skip the first one
 			revString = revString->prev;
 			while(revString != NULL && count < 22) {

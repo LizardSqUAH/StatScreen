@@ -1,0 +1,2 @@
+Show clock on top right
+Modify database to have a title too
