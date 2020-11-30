@@ -23,6 +23,14 @@
 //-----------------
 
 #define maxBoxStringSize 180
+static const char credfilename[] = "./credentials.txt";
+
+typedef struct DBCred {
+	char* ipaddr;
+	unsigned int port;
+	char* user;
+	char* pass;
+} DBCred_t;
 
 typedef struct ReverseString {
 	char* string;
@@ -38,7 +46,40 @@ typedef struct TextElementStruct {
 	struct TextElementStruct * next;
 } TextElementStruct_t;
 
-MYSQL* connectDB() {
+DBCred_t* readCredentials() {
+	DBCred_t *cred = (DBCred_t *) malloc(sizeof(DBCred_t));
+
+	FILE* fp;
+	char buff[255];
+	
+	fp = fopen(credfilename, "r");
+	
+	
+	fscanf(fp, "%s", buff);
+	cred->ipaddr = malloc(sizeof(char) * (strlen(buff) + 1));
+	strcpy(cred->ipaddr, buff);
+	printf("1: %s\n", cred->ipaddr );
+	
+	fscanf(fp, "%s", buff);
+	cred->port = strtoul(buff, NULL, 10);
+	printf("2: %u\n", cred->port );
+	
+	fscanf(fp, "%s", buff);
+	cred->user = malloc(sizeof(char) * (strlen(buff) + 1));
+	strcpy(cred->user, buff);
+	printf("3: %s\n", cred->user );
+	
+	fscanf(fp, "%s", buff);
+	cred->pass = malloc(sizeof(char) * (strlen(buff) + 1));
+	strcpy(cred->pass, buff);
+	printf("4: %s\n", cred->pass );
+	
+	fclose(fp);
+	
+	return cred;
+}
+
+MYSQL* connectDB(DBCred_t *cred) {
 	MYSQL *con = mysql_init(NULL);
 	if (con == NULL) 
 	{
@@ -46,9 +87,14 @@ MYSQL* connectDB() {
 		printf("con == NULL\n");
 		return NULL;
 	}
-
-	if (mysql_real_connect(con, "192.168.1.117", "GuiUser", "8smk^_4=y}vpJF7Cwdh", 
-	  "TextGuiDB", 3306, NULL, 0) == NULL) 
+	if(cred->ipaddr == NULL)
+	{
+		printf("ipaddr == NULL\n");
+		return NULL;
+	}
+	printf("Attempting to connect to %s:%u", cred->ipaddr, cred->port);
+	if (mysql_real_connect(con, cred->ipaddr, cred->user, cred->pass, 
+	  "TextGuiDB", cred->port, NULL, 0) == NULL) 
 	{
 		fprintf(stderr, "Failed to connect to database: Error: %s\n", mysql_error(con));
 		return NULL;
@@ -270,8 +316,10 @@ int drawClock(struct tm *tm, float vcc, float hcc, float radius) {
 	return 0;
 }
 
-int main(void)
-{
+int main( int argc, char *argv[] )
+{	
+	DBCred_t* cred = readCredentials();
+	
 	// Initialization
 	//--------------------------------------------------------------------------------------
 	
@@ -285,7 +333,7 @@ int main(void)
 	
 	long sqlversion = mysql_get_client_version();
 	printf("Version %ld \n", sqlversion);
-	MYSQL *con = connectDB();
+	MYSQL *con = connectDB(cred);
   
   	char* box1Table = "MessageDisplay";
   	char* box2Table = "MessageDisplay1";
@@ -366,7 +414,7 @@ int main(void)
 		//----------- Database Updates
 		if(tm->tm_sec%5 == 0) {
 			if(updateScreen) {
-				MYSQL *con = connectDB();	
+				MYSQL *con = connectDB(cred);	
 				box1Text = queryTextElements(con, box1Table);
 				box2Text = queryTextElements(con, box2Table);
 				box3Text = queryTextElements(con, box3Table);
